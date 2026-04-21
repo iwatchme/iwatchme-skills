@@ -1,10 +1,6 @@
 ---
 name: markdown-to-styled-docx
-description: >
-  将 Markdown 或 Obsidian Markdown 转换为样式化的 .docx 文档。当用户想要把
-  Markdown 导出为 Word、把 Obsidian 笔记转成保持当前简历样式的 .docx、生成带蓝色章节
-  标题和固定头部布局的文档时，立即触发此技能。该技能不处理 Google Drive 下载、上传或
-  Google Docs 转换，只负责本地 Markdown/Obsidian Markdown → .docx。
+description: Use when converting Markdown or Obsidian Markdown into styled DOCX files, especially for resume-style Word export that should preserve the current header, section, and bullet formatting.
 ---
 
 # Markdown to Styled DOCX
