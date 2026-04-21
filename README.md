@@ -1,6 +1,6 @@
-# markdown-to-styled-docx
+# markdown-to-styled-docx-pdf
 
-Agent Skills repository for converting Markdown or Obsidian Markdown into styled DOCX files.
+Agent Skills repository for converting Markdown or Obsidian Markdown into styled DOCX and PDF files.
 
 This repository follows an Agent Skills-style layout so the same repo can be used by multiple agent clients, including Claude-compatible plugin flows and Codex-style `SKILL.md` discovery.
 
@@ -9,7 +9,7 @@ This repository follows an Agent Skills-style layout so the same repo can be use
 ```text
 .claude-plugin/
 skills/
-  markdown-to-styled-docx/
+  markdown-to-styled-docx-pdf/
     SKILL.md
     scripts/
     examples/
@@ -38,9 +38,9 @@ Copy the `skills/` directory into your Codex skills path, or install from a GitH
 Example repo/path:
 
 ```bash
---repo iwatchme/iwatchme-skills --path skills/markdown-to-styled-docx
+--repo iwatchme/iwatchme-skills --path skills/markdown-to-styled-docx-pdf
 ```
 
 ## Skill
 
-- `markdown-to-styled-docx`: Convert Markdown or Obsidian Markdown into styled DOCX while preserving the current resume-oriented output style.
+- `markdown-to-styled-docx-pdf`: Convert Markdown or Obsidian Markdown into styled DOCX and PDF while preserving the current resume-oriented output style.

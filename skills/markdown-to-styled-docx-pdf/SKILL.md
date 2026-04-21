@@ -1,17 +1,22 @@
 ---
-name: markdown-to-styled-docx
-description: Use when converting Markdown or Obsidian Markdown into styled DOCX files, especially for resume-style Word export that should preserve the current header, section, and bullet formatting.
+name: markdown-to-styled-docx-pdf
+description: Use when converting Markdown or Obsidian Markdown into styled DOCX and PDF files, especially for resume-style export that should preserve the current header, section, and bullet formatting.
 ---
 
-# Markdown to Styled DOCX
+# Markdown to Styled DOCX/PDF
 
-这个技能用于把本地 Markdown 内容导出成固定样式的 `.docx`，保留当前简历模板的排版行为。
+这个技能用于把本地 Markdown 内容导出成固定样式的 `.docx`，并默认继续生成同名 `.pdf`，保留当前简历模板的排版行为。
 
 ## 适用场景
 
 - 用户要求“把这个 Markdown 转成 docx”
+- 用户要求“把这个 Markdown 转成 pdf”
+- 用户要求“把这个 Markdown 转成 docx 和 pdf”
 - 用户要求“把 Obsidian 笔记导出为 Word”
-- 用户要求“保持当前简历模板样式生成 .docx”
+- 用户要求“把 Obsidian 笔记导出为 PDF”
+- 用户要求“把简历导出成 Word/PDF”
+- 用户要求“保持当前简历模板样式生成 .docx/.pdf”
+- 用户要求“先生成 docx，再转 pdf”
 
 ## 不做的事
 
@@ -82,10 +87,18 @@ scripts/bootstrap_uv.sh
 scripts/render_docx.sh input.md output.docx
 ```
 
+默认会同时生成与 `output.docx` 同目录、同文件名的 `output.pdf`。
+
 Obsidian Markdown：
 
 ```bash
 scripts/render_docx.sh input.md output.docx --obsidian
+```
+
+如果只想生成 `.docx`，可显式跳过 PDF：
+
+```bash
+scripts/render_docx.sh input.md output.docx --docx-only
 ```
 
 也可以直接调用核心渲染器：
@@ -101,6 +114,7 @@ uv run --python .venv/bin/python python scripts/build_styled_docx.py input.md ou
 - 默认使用 `UV_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple`
 - 初始化环境时显式安装 `python-docx` 和 `lxml`
 - 不依赖 `uv sync` 去安装当前项目包本身
+- 若需要导出 PDF，本机需已安装 `LibreOffice`，并且 `soffice` 可在 `PATH` 中调用
 
 ## 已验证命令
 
@@ -135,4 +149,6 @@ scripts/render_docx.sh \
 ## 实施要求
 
 - 要保持 `build_styled_docx.py` 的输出样式与现有 skill 一致
-- 若用户只要求导出 `.docx`，默认走本地文件输出，不引入任何云端流程
+- 默认先生成 `.docx`，再调用 `LibreOffice` 的 `soffice --headless` 生成同名 `.pdf`
+- 若用户只要求导出 `.docx`，可使用 `--docx-only`
+- 该 skill 的触发应同时覆盖 `.docx` 导出、`.pdf` 导出、以及 `.docx -> .pdf` 的连续导出需求

@@ -73,6 +73,123 @@ def set_indent(paragraph, left_twips=0, hanging_twips=0):
         ind.set(qn("w:hanging"), str(hanging_twips))
 
 
+def ensure_bullet_numbering(doc):
+    numbering_part = doc.part.numbering_part
+    num_id = getattr(numbering_part, "_resume_bullet_num_id", None)
+    if num_id is not None:
+        return num_id
+
+    numbering = numbering_part.element
+    abstract_ids = [
+        int(node.get(qn("w:abstractNumId")))
+        for node in numbering.findall(qn("w:abstractNum"))
+    ]
+    num_ids = [int(node.get(qn("w:numId"))) for node in numbering.findall(qn("w:num"))]
+    abstract_id = max(abstract_ids, default=0) + 1
+    num_id = max(num_ids, default=0) + 1
+
+    abstract_num = OxmlElement("w:abstractNum")
+    abstract_num.set(qn("w:abstractNumId"), str(abstract_id))
+
+    multi_level = OxmlElement("w:multiLevelType")
+    multi_level.set(qn("w:val"), "multilevel")
+    abstract_num.append(multi_level)
+
+    for level, bullet_char, left, hanging, size, latin_font, cjk_font in (
+        (0, "●", 360, 360, 20, FONT_LATIN, FONT_CJK),
+        (1, "○", 760, 400, 20, FONT_LATIN, FONT_CJK),
+    ):
+        lvl = OxmlElement("w:lvl")
+        lvl.set(qn("w:ilvl"), str(level))
+
+        start = OxmlElement("w:start")
+        start.set(qn("w:val"), "1")
+        lvl.append(start)
+
+        num_fmt = OxmlElement("w:numFmt")
+        num_fmt.set(qn("w:val"), "bullet")
+        lvl.append(num_fmt)
+
+        lvl_text = OxmlElement("w:lvlText")
+        lvl_text.set(qn("w:val"), bullet_char)
+        lvl.append(lvl_text)
+
+        suff = OxmlElement("w:suff")
+        suff.set(qn("w:val"), "space")
+        lvl.append(suff)
+
+        lvl_jc = OxmlElement("w:lvlJc")
+        lvl_jc.set(qn("w:val"), "left")
+        lvl.append(lvl_jc)
+
+        p_pr = OxmlElement("w:pPr")
+        tabs = OxmlElement("w:tabs")
+        tab = OxmlElement("w:tab")
+        tab.set(qn("w:val"), "num")
+        tab.set(qn("w:pos"), str(left))
+        tabs.append(tab)
+        p_pr.append(tabs)
+        ind = OxmlElement("w:ind")
+        ind.set(qn("w:left"), str(left))
+        ind.set(qn("w:hanging"), str(hanging))
+        p_pr.append(ind)
+        lvl.append(p_pr)
+
+        r_pr = OxmlElement("w:rPr")
+        r_fonts = OxmlElement("w:rFonts")
+        r_fonts.set(qn("w:ascii"), latin_font)
+        r_fonts.set(qn("w:hAnsi"), latin_font)
+        r_fonts.set(qn("w:eastAsia"), cjk_font)
+        r_fonts.set(qn("w:cs"), cjk_font)
+        r_pr.append(r_fonts)
+
+        sz = OxmlElement("w:sz")
+        sz.set(qn("w:val"), str(size))
+        r_pr.append(sz)
+
+        sz_cs = OxmlElement("w:szCs")
+        sz_cs.set(qn("w:val"), str(size))
+        r_pr.append(sz_cs)
+        lvl.append(r_pr)
+
+        abstract_num.append(lvl)
+
+    numbering.append(abstract_num)
+
+    num = OxmlElement("w:num")
+    num.set(qn("w:numId"), str(num_id))
+    abstract_num_id = OxmlElement("w:abstractNumId")
+    abstract_num_id.set(qn("w:val"), str(abstract_id))
+    num.append(abstract_num_id)
+    numbering.append(num)
+
+    numbering_part._resume_bullet_num_id = num_id
+    return num_id
+
+
+def apply_bullet_level(doc, paragraph, level, left_twips, hanging_twips):
+    num_id = ensure_bullet_numbering(doc)
+    p_pr = paragraph._p.get_or_add_pPr()
+    num_pr = p_pr.find(qn("w:numPr"))
+    if num_pr is None:
+        num_pr = OxmlElement("w:numPr")
+        p_pr.append(num_pr)
+
+    ilvl = num_pr.find(qn("w:ilvl"))
+    if ilvl is None:
+        ilvl = OxmlElement("w:ilvl")
+        num_pr.append(ilvl)
+    ilvl.set(qn("w:val"), str(level))
+
+    num_id_el = num_pr.find(qn("w:numId"))
+    if num_id_el is None:
+        num_id_el = OxmlElement("w:numId")
+        num_pr.append(num_id_el)
+    num_id_el.set(qn("w:val"), str(num_id))
+
+    set_indent(paragraph, left_twips=left_twips, hanging_twips=hanging_twips)
+
+
 def add_paragraph_bottom_border(paragraph, color="1759A0", sz="6"):
     p_pr = paragraph._p.get_or_add_pPr()
     p_bdr = OxmlElement("w:pBdr")
@@ -352,8 +469,7 @@ def add_subtitle_line(doc, text):
 def add_project_bullet(doc, text):
     paragraph = doc.add_paragraph()
     set_paragraph_spacing(paragraph, before=50, after=20)
-    set_indent(paragraph, left_twips=360, hanging_twips=360)
-    add_run(paragraph, "● ", bold=True, size=10.5)
+    apply_bullet_level(doc, paragraph, level=0, left_twips=360, hanging_twips=360)
     match = re.match(r"^((?:核心项目|基础项目)：)(.*)", text)
     if match:
         add_run(paragraph, match.group(1), bold=True, size=10.5)
@@ -365,16 +481,14 @@ def add_project_bullet(doc, text):
 def add_detail_bullet(doc, text):
     paragraph = doc.add_paragraph()
     set_paragraph_spacing(paragraph, before=16, after=16)
-    set_indent(paragraph, left_twips=720, hanging_twips=360)
-    add_run(paragraph, "○ ", size=10)
+    apply_bullet_level(doc, paragraph, level=1, left_twips=760, hanging_twips=400)
     add_inline_bold(paragraph, text, size=10)
 
 
 def add_simple_bullet(doc, text):
     paragraph = doc.add_paragraph()
     set_paragraph_spacing(paragraph, before=20, after=20)
-    set_indent(paragraph, left_twips=360, hanging_twips=360)
-    add_run(paragraph, "● ", size=10.5)
+    apply_bullet_level(doc, paragraph, level=0, left_twips=360, hanging_twips=360)
     add_inline_bold(paragraph, text, size=10.5)
 
 
