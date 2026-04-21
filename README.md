@@ -1,6 +1,6 @@
-# markdown-to-styled-docx-pdf
+# iwatchme-skills
 
-Agent Skills repository for converting Markdown or Obsidian Markdown into styled DOCX and PDF files.
+Agent Skills repository containing reusable skills for document export and Obsidian blog publishing.
 
 This repository follows an Agent Skills-style layout so the same repo can be used by multiple agent clients, including Claude-compatible plugin flows and Codex-style `SKILL.md` discovery.
 
@@ -9,10 +9,13 @@ This repository follows an Agent Skills-style layout so the same repo can be use
 ```text
 .claude-plugin/
 skills/
-  markdown-to-styled-docx-pdf/
+  iwatchme-markdown-to-styled-docx-pdf/
     SKILL.md
     scripts/
     examples/
+  iwatchme-obsidian-blog-publisher/
+    SKILL.md
+    scripts/
 ```
 
 ## Install
@@ -38,9 +41,10 @@ Copy the `skills/` directory into your Codex skills path, or install from a GitH
 Example repo/path:
 
 ```bash
---repo iwatchme/iwatchme-skills --path skills/markdown-to-styled-docx-pdf
+--repo iwatchme/iwatchme-skills --path skills/iwatchme-markdown-to-styled-docx-pdf
 ```
 
-## Skill
+## Skills
 
-- `markdown-to-styled-docx-pdf`: Convert Markdown or Obsidian Markdown into styled DOCX and PDF while preserving the current resume-oriented output style.
+- `iwatchme-markdown-to-styled-docx-pdf`: Convert Markdown or Obsidian Markdown into styled DOCX and PDF while preserving the current resume-oriented output style.
+- `iwatchme-obsidian-blog-publisher`: Prepare a Markdown article for an Obsidian-hosted blog by generating fixed frontmatter, linting code/mermaid blocks, and writing the note into the vault via Obsidian CLI.

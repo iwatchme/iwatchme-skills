@@ -1,5 +1,5 @@
 [project]
-name = "markdown-to-styled-docx-pdf"
+name = "iwatchme-markdown-to-styled-docx-pdf"
 version = "0.1.0"
 description = "Convert Markdown or Obsidian Markdown into styled DOCX and PDF files."
 requires-python = ">=3.9"

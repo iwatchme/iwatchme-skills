@@ -1,0 +1,13 @@
+[project]
+name = "iwatchme-obsidian-blog-publisher"
+version = "0.1.0"
+description = "Prepare Markdown articles for an Obsidian-hosted blog."
+requires-python = ">=3.9"
+dependencies = []
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.uv]
+package = false

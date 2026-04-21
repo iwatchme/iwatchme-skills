@@ -1,5 +1,5 @@
 ---
-name: markdown-to-styled-docx-pdf
+name: iwatchme-markdown-to-styled-docx-pdf
 description: Use when converting Markdown or Obsidian Markdown into styled DOCX and PDF files, especially for resume-style export that should preserve the current header, section, and bullet formatting.
 ---
 

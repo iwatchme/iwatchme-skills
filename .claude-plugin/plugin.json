@@ -1,5 +1,5 @@
 {
-  "name": "markdown-to-styled-docx",
+  "name": "iwatchme-skills",
   "version": "0.1.0",
-  "description": "Agent Skills repository for converting Markdown or Obsidian Markdown into styled DOCX files."
+  "description": "Agent Skills repository for document export and Obsidian blog publishing."
 }
