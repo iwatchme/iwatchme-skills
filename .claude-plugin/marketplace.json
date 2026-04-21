@@ -1,0 +1,22 @@
+{
+  "name": "markdown-to-styled-docx",
+  "owner": {
+    "name": "iwatchme"
+  },
+  "metadata": {
+    "description": "Agent Skills repository for converting Markdown or Obsidian Markdown into styled DOCX files.",
+    "version": "0.1.0",
+    "pluginRoot": "./"
+  },
+  "plugins": [
+    {
+      "name": "markdown-to-styled-docx",
+      "source": "./",
+      "description": "Convert Markdown or Obsidian Markdown into styled DOCX files.",
+      "version": "0.1.0",
+      "skills": [
+        "./skills/markdown-to-styled-docx"
+      ]
+    }
+  ]
+}

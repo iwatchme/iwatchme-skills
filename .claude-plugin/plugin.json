@@ -1,0 +1,5 @@
+{
+  "name": "markdown-to-styled-docx",
+  "version": "0.1.0",
+  "description": "Agent Skills repository for converting Markdown or Obsidian Markdown into styled DOCX files."
+}

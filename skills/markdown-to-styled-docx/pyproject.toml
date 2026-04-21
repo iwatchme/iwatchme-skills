@@ -1,0 +1,15 @@
+[project]
+name = "markdown-to-styled-docx"
+version = "0.1.0"
+description = "Convert Markdown or Obsidian Markdown into styled DOCX files."
+requires-python = ">=3.9"
+dependencies = [
+    "python-docx>=1.1,<2",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.uv]
+package = false
