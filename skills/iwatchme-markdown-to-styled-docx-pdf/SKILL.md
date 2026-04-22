@@ -46,7 +46,7 @@ target: 产品经理
 📧 zhangsan@example.com | 📱 +86 13800000000 | 意向城市：上海
 ```
 
-工作经历推荐使用纯嵌套列表：
+结构化经历类章节推荐使用纯嵌套列表：
 
 ```markdown
 ## 工作经历
@@ -57,6 +57,19 @@ target: 产品经理
     - 主导跨端模板引擎从 0 到 1 建设，设计基于 Protobuf 的统一模板协议。
     - 建设端侧适配层与兼容机制，支撑模板能力规模化生产。
   - 主导播放页分层作用域架构设计与落地，建立多级 Scope 体系。
+```
+
+也支持双列头部结构，例如：
+
+```markdown
+## 项目经历
+
+- B站 UGC 视频模板引擎 | 项目负责人
+  - 项目描述：B站/必剪剪辑业务的核心创作基础设施。
+  - 项目业绩：
+    - 模板体系支撑月均 100W+ 投稿，消费成功率稳定在 99%
+  - 项目职责：
+    - 跨端模板协议设计：主导选型 Protobuf 设计统一模板协议。
 ```
 
 ## Obsidian 预处理
@@ -71,7 +84,7 @@ target: 产品经理
 
 ## 转换流程
 
-推荐用 skill 自带的 `uv` 启动脚本。脚本已经固化了清华镜像：
+推荐先初始化 skill 自带的 `.venv`，再直接用 skill 的 shell 脚本导出：
 
 ```bash
 cd <skill-install-dir>
@@ -88,6 +101,7 @@ scripts/render_docx.sh input.md output.docx
 ```
 
 默认会同时生成与 `output.docx` 同目录、同文件名的 `output.pdf`。
+PDF 转换会直接调用本机安装的 `LibreOffice soffice`。
 
 Obsidian Markdown：
 
@@ -101,20 +115,21 @@ scripts/render_docx.sh input.md output.docx --obsidian
 scripts/render_docx.sh input.md output.docx --docx-only
 ```
 
-也可以直接调用核心渲染器：
+也可以直接调用核心渲染器只生成 `.docx`：
 
 ```bash
-UV_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple \
-uv run --python .venv/bin/python python scripts/build_styled_docx.py input.md output.docx
+python scripts/build_styled_docx.py input.md output.docx
 ```
 
 ## 环境约定
 
-- 默认使用项目目录下的 `.venv`
+- 默认使用 skill 目录下的 `.venv`
 - 默认使用 `UV_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple`
 - 初始化环境时显式安装 `python-docx` 和 `lxml`
 - 不依赖 `uv sync` 去安装当前项目包本身
-- 若需要导出 PDF，本机需已安装 `LibreOffice`，并且 `soffice` 可在 `PATH` 中调用
+- 若需要导出 PDF，本机需已安装 `LibreOffice`
+- macOS 优先直接使用 `/Applications/LibreOffice.app/Contents/MacOS/soffice`
+- 若未安装 `soffice`，脚本应明确提示安装 LibreOffice 或改用 `--docx-only`
 
 ## 已验证命令
 
@@ -133,22 +148,22 @@ scripts/render_docx.sh \
 - `# 姓名` 或 frontmatter 中的 `name`：头部姓名
 - 联系信息行：头部邮箱 / 电话 / 意向城市
 - `## 章节名`：蓝色标题和底部横线
-- `- title | company | date`：职位 / 公司 / 日期行
-- 职位项下首个缩进行：灰色副标题
-- 职位项下 `- 核心项目：xxx` 或 `- 基础项目：xxx`：一级项目符号
-- 核心项目项下继续缩进的 `- 详情`：二级空心圆点
-- 职位项下普通 `- 职责描述`：一级普通列表
+- 结构化条目首行支持 `left | right` 或 `left | middle | right`
+- 结构化条目项下首个缩进行：灰色副标题
+- 结构化条目项下一级 `- 标签：内容`：一级项目符号，标签加粗
+- 一级项目符号项下继续缩进的 `- 详情`：二级空心圆点
+- 非结构化章节中的普通 `- 内容`：一级普通列表
 
-## 工作经历约束
+## 结构化章节约束
 
-- 工作经历职位行必须使用 `title | company | date`
-- 工作经历只支持 3 层列表：职位、项目/职责、项目详情
-- 三级详情只能挂在 `核心项目：` 或 `基础项目：` 下面
-- 为避免打断现有笔记，脚本暂时仍能读取旧的职位写法，但新文档应统一使用列表驱动语法
+- 任意 `## 章节名` 都可使用结构化条目语法
+- 结构化条目首行必须使用 `left | right` 或 `left | middle | right`
+- 结构化条目最多支持 3 层：头部条目、一级项目/职责、二级详情
+- 为避免打断现有笔记，脚本暂时仍能读取旧的 `工作经历` 职位写法，但新文档应统一使用列表驱动语法
 
 ## 实施要求
 
 - 要保持 `build_styled_docx.py` 的输出样式与现有 skill 一致
-- 默认先生成 `.docx`，再调用 `LibreOffice` 的 `soffice --headless` 生成同名 `.pdf`
+- 默认先生成 `.docx`，再直接调用本地 `LibreOffice soffice --headless` 生成同名 `.pdf`
 - 若用户只要求导出 `.docx`，可使用 `--docx-only`
 - 该 skill 的触发应同时覆盖 `.docx` 导出、`.pdf` 导出、以及 `.docx -> .pdf` 的连续导出需求

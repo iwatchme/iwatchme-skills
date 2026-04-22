@@ -275,17 +275,13 @@ def parse_job_title(text):
     return text, "", ""
 
 
-def parse_job_row(text, line_no):
+def parse_structured_row(text, line_no):
     parts = [part.strip() for part in text.split("|")]
-    if len(parts) != 3 or not all(parts):
+    if len(parts) not in (2, 3) or not all(parts):
         raise ValueError(
-            f"Line {line_no}: job row must be 'title | company | date', got: {text}"
+            f"Line {line_no}: structured row must be 'left | right' or 'left | middle | right', got: {text}"
         )
-    return parts[0], parts[1], parts[2]
-
-
-def is_work_experience_section(section_name):
-    return "工作经历" in section_name
+    return parts
 
 
 def parse_line_indent(line, line_no):
@@ -300,11 +296,10 @@ def parse_line_indent(line, line_no):
 def parse_markdown(content):
     tokens = []
     current_section = ""
-    in_work_section = False
-    job_active = False
-    job_has_subtitle = False
-    job_has_children = False
-    current_child_kind = None
+    entry_active = False
+    entry_has_subtitle = False
+    entry_has_children = False
+    current_list_level = None
 
     for line_no, line in enumerate(content.split("\n"), 1):
         stripped = line.strip()
@@ -315,92 +310,89 @@ def parse_markdown(content):
 
         if stripped.startswith("# ") and not stripped.startswith("## "):
             tokens.append({"type": "name", "text": stripped[2:].strip()})
-            job_active = False
-            current_child_kind = None
+            entry_active = False
+            current_list_level = None
         elif stripped.startswith("## "):
             current_section = stripped[3:].strip()
-            in_work_section = is_work_experience_section(current_section)
             tokens.append({"type": "section", "text": current_section})
-            job_active = False
-            job_has_subtitle = False
-            job_has_children = False
-            current_child_kind = None
+            entry_active = False
+            entry_has_subtitle = False
+            entry_has_children = False
+            current_list_level = None
         elif stripped == "---":
             continue
         elif re.match(r"^[📧📱]", stripped) or ("|" in stripped and "@" in stripped):
             tokens.append({"type": "contact", "text": stripped})
-        elif in_work_section and stripped.startswith("- "):
+        elif stripped.startswith("- "):
             text = stripped[2:].strip()
             if indent_level == 0:
                 if "|" in text:
-                    title, company, date = parse_job_row(text, line_no)
+                    parts = parse_structured_row(text, line_no)
                     tokens.append(
                         {
-                            "type": "job_row",
-                            "title": title,
-                            "company": company,
-                            "date": date,
+                            "type": "structured_row",
+                            "parts": parts,
                         }
                     )
-                else:
+                    entry_active = True
+                    entry_has_subtitle = False
+                    entry_has_children = False
+                    current_list_level = None
+                elif "工作经历" in current_section:
                     # Backward compatibility for existing notes while the new
                     # list-driven syntax becomes the documented path.
                     title, company, date = parse_job_title(text)
                     tokens.append(
                         {
-                            "type": "job_row",
-                            "title": title,
-                            "company": company,
-                            "date": date,
+                            "type": "structured_row",
+                            "parts": [title, company, date],
                         }
                     )
-                job_active = True
-                job_has_subtitle = False
-                job_has_children = False
-                current_child_kind = None
-            elif indent_level == 1:
-                if not job_active:
-                    raise ValueError(
-                        f"Line {line_no}: nested list item must belong to a job row"
-                    )
-                if re.match(r"^(核心项目|基础项目)：", text):
-                    tokens.append({"type": "project_bullet", "text": text})
-                    current_child_kind = "project"
+                    entry_active = True
+                    entry_has_subtitle = False
+                    entry_has_children = False
+                    current_list_level = None
                 else:
-                    tokens.append({"type": "simple_bullet", "text": text})
-                    current_child_kind = "simple"
-                job_has_children = True
-            elif indent_level == 2:
-                if current_child_kind != "project":
+                    tokens.append({"type": "list_item", "text": text, "level": 0})
+                    entry_active = False
+                    current_list_level = 0
+            elif indent_level == 1:
+                if not entry_active:
                     raise ValueError(
-                        f"Line {line_no}: level-3 detail bullets must belong to a core/basic project"
+                        f"Line {line_no}: nested list item must belong to a structured row"
                     )
-                tokens.append({"type": "detail_bullet", "text": text})
+                tokens.append({"type": "nested_bullet", "text": text, "level": 1})
+                entry_has_children = True
+                current_list_level = 1
+            elif indent_level == 2:
+                if not entry_active or current_list_level not in (1, 2):
+                    raise ValueError(
+                        f"Line {line_no}: level-3 detail bullets must belong to a level-2 list item"
+                    )
+                tokens.append({"type": "nested_bullet", "text": text, "level": 2})
+                current_list_level = 2
             else:
                 raise ValueError(
-                    f"Line {line_no}: work experience supports at most 3 list levels"
+                    f"Line {line_no}: structured sections support at most 3 list levels"
                 )
-        elif in_work_section and indent_level >= 1:
-            if not job_active:
+        elif indent_level >= 1:
+            if not entry_active:
                 raise ValueError(
-                    f"Line {line_no}: indented text in work experience must belong to a job row"
+                    f"Line {line_no}: indented text must belong to a structured row"
                 )
-            if job_has_children or job_has_subtitle:
+            if entry_has_children or entry_has_subtitle:
                 raise ValueError(
                     f"Line {line_no}: only one subtitle line is allowed before nested bullets"
                 )
             tokens.append({"type": "subtitle", "text": stripped})
-            job_has_subtitle = True
+            entry_has_subtitle = True
         elif stripped.startswith("### "):
             tokens.append({"type": "job_title", "text": stripped[4:].strip()})
         elif stripped.startswith("**") and stripped.endswith("**") and len(stripped) > 4:
             inner = stripped[2:-2].strip()
-            if re.match(r"^(核心项目|基础项目)：", inner):
-                tokens.append({"type": "project_bullet", "text": inner})
-            else:
-                tokens.append({"type": "subtitle", "text": inner})
+            tokens.append({"type": "subtitle", "text": inner})
         elif stripped.startswith("- "):
-            tokens.append({"type": "list_item", "text": stripped[2:].strip()})
+            tokens.append({"type": "list_item", "text": stripped[2:].strip(), "level": 0})
         else:
             tokens.append({"type": "paragraph", "text": stripped})
     return tokens
@@ -448,16 +440,21 @@ def add_section_heading(doc, text):
     add_paragraph_bottom_border(paragraph)
 
 
-def add_job_header(doc, title, company, date):
+def add_structured_header(doc, parts):
     paragraph = doc.add_paragraph()
     set_paragraph_spacing(paragraph, before=100, after=20)
-    add_tab_stop(paragraph, 8.5, "center")
-    add_tab_stop(paragraph, 16.2, "right")
-    add_run(paragraph, title, bold=True, size=11.5)
-    paragraph.add_run("\t")
-    add_run(paragraph, company, bold=True, size=11.5)
-    paragraph.add_run("\t")
-    add_run(paragraph, date, bold=True, size=11.5)
+    add_run(paragraph, parts[0], bold=True, size=11.5)
+    if len(parts) == 2:
+        add_tab_stop(paragraph, 16.2, "right")
+        paragraph.add_run("\t")
+        add_run(paragraph, parts[1], bold=False, size=11.5)
+    elif len(parts) == 3:
+        add_tab_stop(paragraph, 8.5, "center")
+        add_tab_stop(paragraph, 16.2, "right")
+        paragraph.add_run("\t")
+        add_run(paragraph, parts[1], bold=True, size=11.5)
+        paragraph.add_run("\t")
+        add_run(paragraph, parts[2], bold=True, size=11.5)
 
 
 def add_subtitle_line(doc, text):
@@ -466,16 +463,16 @@ def add_subtitle_line(doc, text):
     add_run(paragraph, text, size=9.5, color=DARK_GRAY)
 
 
-def add_project_bullet(doc, text):
+def add_labeled_bullet(doc, text):
     paragraph = doc.add_paragraph()
     set_paragraph_spacing(paragraph, before=50, after=20)
     apply_bullet_level(doc, paragraph, level=0, left_twips=360, hanging_twips=360)
-    match = re.match(r"^((?:核心项目|基础项目)：)(.*)", text)
+    match = re.match(r"^([^：]+：)(.*)", text)
     if match:
         add_run(paragraph, match.group(1), bold=True, size=10.5)
         add_run(paragraph, match.group(2), bold=False, size=10.5)
     else:
-        add_run(paragraph, text, bold=True, size=10.5)
+        add_inline_bold(paragraph, text, size=10.5)
 
 
 def add_detail_bullet(doc, text):
@@ -542,7 +539,7 @@ def build_docx(md_content, output_path):
         set_paragraph_spacing(spacer, before=0, after=60)
         header_built = True
 
-    in_project_context = False
+    nested_context_level = None
     name = fm_name
 
     for token in tokens:
@@ -564,27 +561,24 @@ def build_docx(md_content, output_path):
             add_summary(doc, text)
         elif token_type == "section":
             add_section_heading(doc, text)
-            in_project_context = False
+            nested_context_level = None
         elif token_type == "job_title":
             title, company, date = parse_job_title(text)
-            add_job_header(doc, title, company, date)
-            in_project_context = False
-        elif token_type == "job_row":
-            add_job_header(doc, token["title"], token["company"], token["date"])
-            in_project_context = False
+            add_structured_header(doc, [title, company, date])
+            nested_context_level = None
+        elif token_type == "structured_row":
+            add_structured_header(doc, token["parts"])
+            nested_context_level = None
         elif token_type == "subtitle":
             add_subtitle_line(doc, text)
-        elif token_type == "project_bullet":
-            add_project_bullet(doc, text)
-            in_project_context = True
-        elif token_type == "simple_bullet":
-            add_simple_bullet(doc, text)
-            in_project_context = False
-        elif token_type == "detail_bullet":
-            add_detail_bullet(doc, text)
-            in_project_context = True
+        elif token_type == "nested_bullet":
+            if token["level"] == 1:
+                add_labeled_bullet(doc, text)
+            else:
+                add_detail_bullet(doc, text)
+            nested_context_level = token["level"]
         elif token_type == "list_item":
-            if in_project_context:
+            if nested_context_level == 1:
                 add_detail_bullet(doc, text)
             else:
                 add_simple_bullet(doc, text)

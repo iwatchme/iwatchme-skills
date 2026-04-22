@@ -27,18 +27,21 @@ def preprocess_obsidian(text):
 
 
 def convert_docx_to_pdf(output_docx):
-    soffice = shutil.which("soffice")
+    bundled_soffice = Path("/Applications/LibreOffice.app/Contents/MacOS/soffice")
+    soffice = str(bundled_soffice) if bundled_soffice.exists() else shutil.which("soffice")
     if not soffice:
         raise RuntimeError(
-            "LibreOffice 'soffice' not found in PATH; install LibreOffice or use --docx-only"
+            "未检测到 LibreOffice/soffice，请先安装 LibreOffice，或改用 --docx-only 仅生成 docx。"
         )
 
     docx_path = Path(output_docx).expanduser().resolve()
     outdir = docx_path.parent
-
+    profile_dir = Path("/tmp/codex-libreoffice-profile")
+    profile_dir.mkdir(parents=True, exist_ok=True)
     subprocess.run(
         [
             soffice,
+            f"-env:UserInstallation={profile_dir.as_uri()}",
             "--headless",
             "--convert-to",
             "pdf",
