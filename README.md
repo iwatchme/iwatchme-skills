@@ -9,7 +9,7 @@ This repository follows an Agent Skills-style layout so the same repo can be use
 ```text
 .claude-plugin/
 skills/
-  iwatchme-markdown-to-styled-docx-pdf/
+  iwatchme-markdown-to-styled-docx/
     SKILL.md
     scripts/
     examples/
@@ -41,10 +41,10 @@ Copy the `skills/` directory into your Codex skills path, or install from a GitH
 Example repo/path:
 
 ```bash
---repo iwatchme/iwatchme-skills --path skills/iwatchme-markdown-to-styled-docx-pdf
+--repo iwatchme/iwatchme-skills --path skills/iwatchme-markdown-to-styled-docx
 ```
 
 ## Skills
 
-- `iwatchme-markdown-to-styled-docx-pdf`: Convert Markdown or Obsidian Markdown into styled DOCX and PDF while preserving the current resume-oriented output style.
+- `iwatchme-markdown-to-styled-docx`: Convert Markdown or Obsidian Markdown into styled DOCX while preserving the current resume-oriented output style.
 - `iwatchme-obsidian-blog-publisher`: Prepare a Markdown article for an Obsidian-hosted blog by generating fixed frontmatter, linting code/mermaid blocks, and writing the note into the vault via Obsidian CLI.

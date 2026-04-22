@@ -72,7 +72,7 @@ slug: ""
 
 ## 使用 `uv`
 
-优先使用 skill 自带的 `uv` 环境。脚本目录约定和 `iwatchme-markdown-to-styled-docx-pdf` 一致：
+优先使用 skill 自带的 `uv` 环境。脚本目录约定和 `iwatchme-markdown-to-styled-docx` 一致：
 
 ```bash
 cd <skill-install-dir>

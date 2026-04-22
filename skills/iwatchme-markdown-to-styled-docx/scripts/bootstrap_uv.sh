@@ -10,6 +10,8 @@ if [ ! -x ".venv/bin/python" ]; then
   uv venv .venv
 fi
 
-uv pip install --python .venv/bin/python python-docx lxml
+uv pip install --python .venv/bin/python \
+  'python-docx>=1.1,<2' \
+  'lxml>=5,<6'
 
 echo "[OK] uv environment ready at $ROOT_DIR/.venv"

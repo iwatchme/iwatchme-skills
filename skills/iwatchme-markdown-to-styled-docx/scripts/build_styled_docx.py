@@ -2,7 +2,7 @@
 """
 build_styled_docx.py — Markdown 简历 → 样式化 .docx
 
-支持 YAML frontmatter（推荐）和 📧/📱 行（兼容旧格式）两种联系信息写法。
+使用 YAML frontmatter 作为唯一的头部联系信息来源。
 
 Usage:
     pip install python-docx --break-system-packages
@@ -73,6 +73,23 @@ def set_indent(paragraph, left_twips=0, hanging_twips=0):
         ind.set(qn("w:hanging"), str(hanging_twips))
 
 
+def set_paragraph_pagination(
+    paragraph, keep_next=False, keep_lines=False, page_break_before=False
+):
+    p_pr = paragraph._p.get_or_add_pPr()
+    for tag, enabled in (
+        ("w:keepNext", keep_next),
+        ("w:keepLines", keep_lines),
+        ("w:pageBreakBefore", page_break_before),
+    ):
+        existing = p_pr.find(qn(tag))
+        if enabled:
+            if existing is None:
+                p_pr.append(OxmlElement(tag))
+        elif existing is not None:
+            p_pr.remove(existing)
+
+
 def ensure_bullet_numbering(doc):
     numbering_part = doc.part.numbering_part
     num_id = getattr(numbering_part, "_resume_bullet_num_id", None)
@@ -115,7 +132,7 @@ def ensure_bullet_numbering(doc):
         lvl.append(lvl_text)
 
         suff = OxmlElement("w:suff")
-        suff.set(qn("w:val"), "space")
+        suff.set(qn("w:val"), "tab")
         lvl.append(suff)
 
         lvl_jc = OxmlElement("w:lvlJc")
@@ -254,20 +271,6 @@ def parse_frontmatter(content):
     return metadata, body
 
 
-def parse_contact(text):
-    parts = [part.strip() for part in re.split(r"\|", text)]
-    email = phone = city = ""
-    for part in parts:
-        part = re.sub(r"[📧📱]", "", part).strip()
-        if "@" in part:
-            email = part
-        elif re.match(r"[\+\d]", part):
-            phone = part
-        elif "意向城市" in part:
-            city = part.replace("意向城市：", "").strip()
-    return email, phone, city
-
-
 def parse_job_title(text):
     match = re.match(r"^(.+?)\s*[·•]\s*(.+?)（(.+?)）\s*$", text)
     if match:
@@ -295,11 +298,20 @@ def parse_line_indent(line, line_no):
 
 def parse_markdown(content):
     tokens = []
-    current_section = ""
     entry_active = False
     entry_has_subtitle = False
     entry_has_children = False
     current_list_level = None
+    current_entry_token = None
+
+    def close_entry():
+        nonlocal entry_active, entry_has_subtitle, entry_has_children
+        nonlocal current_list_level, current_entry_token
+        entry_active = False
+        entry_has_subtitle = False
+        entry_has_children = False
+        current_list_level = None
+        current_entry_token = None
 
     for line_no, line in enumerate(content.split("\n"), 1):
         stripped = line.strip()
@@ -310,51 +322,46 @@ def parse_markdown(content):
 
         if stripped.startswith("# ") and not stripped.startswith("## "):
             tokens.append({"type": "name", "text": stripped[2:].strip()})
-            entry_active = False
-            current_list_level = None
+            close_entry()
         elif stripped.startswith("## "):
-            current_section = stripped[3:].strip()
-            tokens.append({"type": "section", "text": current_section})
-            entry_active = False
-            entry_has_subtitle = False
-            entry_has_children = False
-            current_list_level = None
+            tokens.append({"type": "section", "text": stripped[3:].strip()})
+            close_entry()
         elif stripped == "---":
             continue
-        elif re.match(r"^[📧📱]", stripped) or ("|" in stripped and "@" in stripped):
-            tokens.append({"type": "contact", "text": stripped})
         elif stripped.startswith("- "):
             text = stripped[2:].strip()
             if indent_level == 0:
+                close_entry()
                 if "|" in text:
                     parts = parse_structured_row(text, line_no)
                     tokens.append(
                         {
                             "type": "structured_row",
                             "parts": parts,
+                            "has_details": False,
                         }
                     )
+                    current_entry_token = tokens[-1]
                     entry_active = True
-                    entry_has_subtitle = False
-                    entry_has_children = False
-                    current_list_level = None
-                elif "工作经历" in current_section:
-                    # Backward compatibility for existing notes while the new
-                    # list-driven syntax becomes the documented path.
+                elif parse_job_title(text)[1]:
                     title, company, date = parse_job_title(text)
                     tokens.append(
                         {
                             "type": "structured_row",
                             "parts": [title, company, date],
+                            "has_details": False,
                         }
                     )
+                    current_entry_token = tokens[-1]
                     entry_active = True
-                    entry_has_subtitle = False
-                    entry_has_children = False
-                    current_list_level = None
                 else:
-                    tokens.append({"type": "list_item", "text": text, "level": 0})
-                    entry_active = False
+                    tokens.append(
+                        {
+                            "type": "list_item",
+                            "text": text,
+                            "level": 0,
+                        }
+                    )
                     current_list_level = 0
             elif indent_level == 1:
                 if not entry_active:
@@ -363,6 +370,8 @@ def parse_markdown(content):
                     )
                 tokens.append({"type": "nested_bullet", "text": text, "level": 1})
                 entry_has_children = True
+                if current_entry_token is not None:
+                    current_entry_token["has_details"] = True
                 current_list_level = 1
             elif indent_level == 2:
                 if not entry_active or current_list_level not in (1, 2):
@@ -386,13 +395,21 @@ def parse_markdown(content):
                 )
             tokens.append({"type": "subtitle", "text": stripped})
             entry_has_subtitle = True
+            if current_entry_token is not None:
+                current_entry_token["has_details"] = True
         elif stripped.startswith("### "):
             tokens.append({"type": "job_title", "text": stripped[4:].strip()})
         elif stripped.startswith("**") and stripped.endswith("**") and len(stripped) > 4:
             inner = stripped[2:-2].strip()
             tokens.append({"type": "subtitle", "text": inner})
         elif stripped.startswith("- "):
-            tokens.append({"type": "list_item", "text": stripped[2:].strip(), "level": 0})
+            tokens.append(
+                {
+                    "type": "list_item",
+                    "text": stripped[2:].strip(),
+                    "level": 0,
+                }
+            )
         else:
             tokens.append({"type": "paragraph", "text": stripped})
     return tokens
@@ -413,7 +430,7 @@ def build_header(doc, name, email, phone, city):
     email_run.font.underline = True
     if city:
         left_paragraph.add_run("\n")
-        add_run(left_paragraph, f"意向城市：{city}", size=9)
+        add_run(left_paragraph, city, size=9)
 
     middle_cell = table.cell(0, 1)
     middle_cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
@@ -436,21 +453,22 @@ def build_header(doc, name, email, phone, city):
 def add_section_heading(doc, text):
     paragraph = doc.add_paragraph()
     set_paragraph_spacing(paragraph, before=140, after=40)
+    set_paragraph_pagination(paragraph, keep_next=True, keep_lines=False)
     add_run(paragraph, text, bold=True, size=13, color=BLUE)
     add_paragraph_bottom_border(paragraph)
 
 
-def add_structured_header(doc, parts):
+def add_structured_header(doc, parts, right_align=True):
     paragraph = doc.add_paragraph()
     set_paragraph_spacing(paragraph, before=100, after=20)
     add_run(paragraph, parts[0], bold=True, size=11.5)
     if len(parts) == 2:
-        add_tab_stop(paragraph, 16.2, "right")
+        add_tab_stop(paragraph, 16.2, "right" if right_align else "left")
         paragraph.add_run("\t")
         add_run(paragraph, parts[1], bold=False, size=11.5)
     elif len(parts) == 3:
-        add_tab_stop(paragraph, 8.5, "center")
-        add_tab_stop(paragraph, 16.2, "right")
+        add_tab_stop(paragraph, 8.5, "center" if right_align else "left")
+        add_tab_stop(paragraph, 16.2, "right" if right_align else "left")
         paragraph.add_run("\t")
         add_run(paragraph, parts[1], bold=True, size=11.5)
         paragraph.add_run("\t")
@@ -489,6 +507,20 @@ def add_simple_bullet(doc, text):
     add_inline_bold(paragraph, text, size=10.5)
 
 
+def add_plain_line(doc, text):
+    paragraph = doc.add_paragraph()
+    set_paragraph_spacing(paragraph, before=20, after=20)
+    add_inline_bold(paragraph, text, size=10.5)
+
+
+def add_compact_structured_item(doc, parts):
+    paragraph = doc.add_paragraph()
+    set_paragraph_spacing(paragraph, before=20, after=20)
+    apply_bullet_level(doc, paragraph, level=0, left_twips=360, hanging_twips=360)
+    add_run(paragraph, f"{parts[0]}：", bold=True, size=10.5)
+    add_run(paragraph, parts[1], bold=False, size=10.5)
+
+
 def add_summary(doc, text):
     paragraph = doc.add_paragraph()
     set_paragraph_spacing(paragraph, before=80, after=80)
@@ -523,40 +555,28 @@ def build_docx(md_content, output_path):
     r_fonts.set(qn("w:eastAsia"), FONT_CJK)
 
     metadata, body = parse_frontmatter(md_content)
-    has_frontmatter = bool(metadata)
-
     fm_name = metadata.get("name", "")
     fm_email = metadata.get("email", "")
     fm_phone = metadata.get("phone", "")
     fm_city = metadata.get("city", "")
 
-    tokens = parse_markdown(body if has_frontmatter else md_content)
+    if not fm_name or not fm_email:
+        raise ValueError("frontmatter must include at least 'name' and 'email'")
 
-    header_built = False
-    if has_frontmatter and fm_name and fm_email:
-        build_header(doc, fm_name, fm_email, fm_phone, fm_city)
-        spacer = doc.add_paragraph()
-        set_paragraph_spacing(spacer, before=0, after=60)
-        header_built = True
+    tokens = parse_markdown(body)
+
+    build_header(doc, fm_name, fm_email, fm_phone, fm_city)
+    spacer = doc.add_paragraph()
+    set_paragraph_spacing(spacer, before=0, after=60)
 
     nested_context_level = None
-    name = fm_name
 
     for token in tokens:
         token_type = token["type"]
         text = token.get("text", "")
 
         if token_type == "name":
-            if not header_built:
-                name = text
-        elif token_type == "contact":
-            if not header_built:
-                email, phone, city = parse_contact(text)
-                if name:
-                    build_header(doc, name, email, phone, city)
-                    spacer = doc.add_paragraph()
-                    set_paragraph_spacing(spacer, before=0, after=60)
-                    header_built = True
+            continue
         elif token_type == "paragraph":
             add_summary(doc, text)
         elif token_type == "section":
@@ -567,7 +587,10 @@ def build_docx(md_content, output_path):
             add_structured_header(doc, [title, company, date])
             nested_context_level = None
         elif token_type == "structured_row":
-            add_structured_header(doc, token["parts"])
+            if len(token["parts"]) == 2 and not token.get("has_details", False):
+                add_compact_structured_item(doc, token["parts"])
+            else:
+                add_structured_header(doc, token["parts"], right_align=True)
             nested_context_level = None
         elif token_type == "subtitle":
             add_subtitle_line(doc, text)
