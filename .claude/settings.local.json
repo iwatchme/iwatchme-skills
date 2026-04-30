@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(mkdir -p /Users/iwatchme/Documents/iwatchme-skills/skills/iwatchme-technical-writing)",
+      "Bash(mkdir -p /Users/iwatchme/Documents/iwatchme-skills/skills/iwatchme-deep-research)"
+    ]
+  }
+}

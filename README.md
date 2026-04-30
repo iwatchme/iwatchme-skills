@@ -16,6 +16,10 @@ skills/
   iwatchme-obsidian-blog-publisher/
     SKILL.md
     scripts/
+  iwatchme-technical-writing/
+    SKILL.md
+  iwatchme-deep-research/
+    SKILL.md
 ```
 
 ## Install
@@ -48,3 +52,5 @@ Example repo/path:
 
 - `iwatchme-markdown-to-styled-docx`: Convert Markdown or Obsidian Markdown into styled DOCX while preserving the current resume-oriented output style.
 - `iwatchme-obsidian-blog-publisher`: Prepare a Markdown article for an Obsidian-hosted blog by generating fixed frontmatter, linting code/mermaid blocks, and writing the note into the vault via Obsidian CLI.
+- `iwatchme-technical-writing`: Technical article writing standards with anti-AI-style quality checks, four-layer review system, and polish mode. Can be used standalone or as a dependency of deep-research.
+- `iwatchme-deep-research`: Three-phase deep research workflow (local scan → explore & dump → offline writing + quality review). Depends on `iwatchme-technical-writing` for writing standards and quality checks.
