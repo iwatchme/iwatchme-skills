@@ -20,6 +20,9 @@ skills/
     SKILL.md
   iwatchme-deep-research/
     SKILL.md
+  gbt14885-asset-classifier/
+    SKILL.md
+    references/
 ```
 
 ## Install
@@ -54,3 +57,5 @@ Example repo/path:
 - `iwatchme-obsidian-blog-publisher`: Prepare a Markdown article for an Obsidian-hosted blog by generating fixed frontmatter, linting code/mermaid blocks, and writing the note into the vault via Obsidian CLI.
 - `iwatchme-technical-writing`: Technical article writing standards with anti-AI-style quality checks, four-layer review system, and polish mode. Can be used standalone or as a dependency of deep-research.
 - `iwatchme-deep-research`: Three-phase deep research workflow (local scan → explore & dump → offline writing + quality review). Depends on `iwatchme-technical-writing` for writing standards and quality checks.
+
+- `gbt14885-asset-classifier`: Classify asset registers using the national standard and prepare reviewed Shanghai asset-system imports using supplied templates.

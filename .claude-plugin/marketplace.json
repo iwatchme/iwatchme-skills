@@ -16,7 +16,8 @@
       "version": "0.1.0",
       "skills": [
         "./skills/iwatchme-markdown-to-styled-docx-pdf",
-        "./skills/iwatchme-obsidian-blog-publisher"
+        "./skills/iwatchme-obsidian-blog-publisher",
+        "./skills/gbt14885-asset-classifier"
       ]
     }
   ]
